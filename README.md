@@ -56,7 +56,10 @@ firmware/
    ├─ patches/                      OTA 双系统保护补丁
    └─ apply_to_xiaozhi.ps1
 server/
-└─ custom-plugins/           服务端插件：A 股 / 指数行情（腾讯财经免费接口）
+└─ aliyun-deploy/            阿里云一键部署：Docker Compose、Nginx（隐藏 OTA 路径）、密钥生成脚本
+   ├─ data/.config.example.yaml   服务端配置模板（所有 Key 均为占位符）
+   ├─ plugins/get_stock_quote.py  自定义插件：A 股 / 指数行情（腾讯财经免费接口）
+   └─ DEPLOY_ALIYUN.md            完整部署手册
 tools/
 └─ xiaozhi-skin/             生成圆屏背景皮肤并打包进小智资源分区
 docs/
@@ -92,7 +95,13 @@ cd ..\xiaomei-ai-watch\firmware\launcher
 
 ### 3. 服务端
 
-参考 [xiaozhi-esp32-server](https://github.com/xinnan-tech/xiaozhi-esp32-server) 的部署文档。自定义插件挂载到容器的 `plugins_func/functions/` 目录，并在配置的 `Intent.function_call.functions` 中加入 `get_stock_quote`。
+完整步骤见 [server/aliyun-deploy/DEPLOY_ALIYUN.md](server/aliyun-deploy/DEPLOY_ALIYUN.md)，要点：
+
+```bash
+cp server/aliyun-deploy/data/.config.example.yaml server/aliyun-deploy/data/.config.yaml
+# 编辑 .config.yaml，把 <...> 占位符换成你自己的 appid / token / API Key
+export PUBLIC_IP=你的服务器公网IP        # 部署脚本从环境变量读取，不写死在代码里
+```
 
 > ⚠️ 所有 API Key（大模型、语音、天气等）只放在服务器的 `data/.config.yaml` 中，**不要提交到仓库**；`.gitignore` 已忽略该文件。
 

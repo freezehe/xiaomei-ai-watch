@@ -1,0 +1,31 @@
+# 小智服务端（阿里云 <你的服务器IP> 版）
+# 与官方 docker-compose.yml 的区别：
+#   1. 8000/8003 只绑定 127.0.0.1，公网只通过已有的 Nginx 8888 端口访问（OTA 走隐藏路径）
+#   2. 不挂载 FunASR 本地模型：本机可用内存只有约 430MB，语音识别改用云端（豆包流式 ASR）
+#   3. 限制容器内存，防止挤占同机的 Java 应用
+services:
+  xiaozhi-esp32-server:
+    image: ghcr.nju.edu.cn/xinnan-tech/xiaozhi-esp32-server:server_latest
+    container_name: xiaozhi-esp32-server
+    restart: always
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - TZ=Asia/Shanghai
+      - OMP_NUM_THREADS=1       # VAD 用 1 个线程足够，省 CPU/内存
+    ports:
+      - "127.0.0.1:8000:8000"   # WebSocket（仅本机，由 Nginx 转发）
+      - "127.0.0.1:8003:8003"   # OTA HTTP（仅本机，由 Nginx 转发）
+    volumes:
+      - ./data:/opt/xiaozhi-esp32-server/data
+      # 自定义插件：A 股/指数行情（放进 plugins_func/functions 会被自动加载）
+      - ./plugins/get_stock_quote.py:/opt/xiaozhi-esp32-server/plugins_func/functions/get_stock_quote.py:ro
+      # 语音点歌：宿主机 mp3 目录（在 .env 里设置 MUSIC_DIR，由 3_update.sh 生成）只读挂载为容器内 ./music
+      - ${MUSIC_DIR:-./music}:/opt/xiaozhi-esp32-server/music:ro
+    mem_limit: 800m             # 实测不含本地 ASR 约 250~400MB，留余量
+    memswap_limit: 1600m        # 允许用一部分 swap 兜底
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"         # 40G 系统盘，别让日志撑满
+        max-file: "3"

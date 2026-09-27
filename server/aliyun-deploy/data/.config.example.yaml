@@ -1,0 +1,115 @@
+# 云端覆盖配置：~/xiaozhi-server/data/.config.yaml（chmod 600）
+# 未写的项沿用镜像内置的 config.yaml
+# auth_key 由 init_secrets.sh 自动生成；<...> 需要你手动填写
+
+server:
+  # 设备从 OTA 拿到的 WebSocket 地址：公网 IP + Nginx 端口（不是 8000）
+  websocket: ws://<你的服务器公网IP>:8888/xiaozhi/v1/
+  # token 签名密钥（泄露等于别人可以伪造 token）
+  auth_key: __AUTH_KEY__
+  auth:
+    enabled: true
+    # 留空 = 所有设备都必须带 token（不要填 MAC，填了的设备会"免 token 直接放行"）
+    allowed_devices: []
+    # token 有效期 30 天；设备每次开机都会从 OTA 重新获取
+    expire_seconds: 2592000
+
+prompt: |
+  你是"小美"，一个住在圆形 AMOLED 屏里的台湾女生语音助手，声音甜、个性温柔又有点俏皮。
+  - 说话带台湾口语习惯，自然地用"喔、啦、耶、欸、超…的、真的假的"，但不要每句都堆语气词
+  - 回答口语化、简短（通常 1~3 句），适合直接朗读，不要使用 Markdown、列表或表情符号
+  - 用户问技术问题时，可以稍微展开，但仍然先给结论
+  - 不确定的事情直说不知道，不要编造
+
+# 出错时的兜底回复（内置默认里写的是"小智"）
+system_error_response: "主人，小美现在有点忙，我们稍后再试吧。"
+
+selected_module:
+  VAD: SileroVAD
+  # 云端语音识别（本机内存装不下本地 FunASR）：二选一
+  #   DoubaoStreamASR —— 火山语音（和"湾湾小何"同一个 appid/token，推荐）
+  #   Qwen3ASRFlash  —— 阿里云百炼（只需一个 API Key）
+  ASR: DoubaoStreamASR
+  # DoubaoLLM = 豆包 Seed 2.1 Lite（最新）；DoubaoCharacterLLM = 角色扮演模型（更快）；DeepSeekLLM
+  LLM: DoubaoLLM
+  # EdgeTTS = 免费台湾女声；HuoshanDoubleStreamTTS = 湾湾小何（需火山语音 appid/token）
+  TTS: HuoshanDoubleStreamTTS
+  Memory: nomem
+  Intent: function_call
+
+ASR:
+  DoubaoStreamASR:
+    type: doubao_stream
+    # 火山引擎语音控制台 → 创建应用 → 开通"大模型流式语音识别"（service/10011）
+    appid: "<火山语音 appid>"
+    access_token: "<火山语音 access_token>"
+    resource_id: volc.bigasr.sauc.duration
+    # 必须显式置空：默认配置里是"（选填）..."占位文字，会被原样当成热词表名发给火山
+    boosting_table_name: ""
+    correct_table_name: ""
+    # 句尾静音判定（ms）。自动模式下服务端只取"第一句定稿"就结束聆听：
+    # 实测 200（默认）会把"帮我把音量调到60，然后讲个笑话"切成两句、丢掉后半句；500 能保留整句，只多等约 0.3s
+    end_window_size: 500
+    output_dir: tmp/
+  Qwen3ASRFlash:
+    type: qwen3_asr_flash
+    # 阿里云百炼 → API-KEY 管理 → 创建
+    api_key: <百炼 API Key>
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    model_name: qwen3-asr-flash
+    output_dir: tmp/
+    enable_lid: true
+    enable_itn: true
+    context: ""
+
+LLM:
+  DoubaoLLM:
+    type: openai
+    base_url: https://ark.cn-beijing.volces.com/api/v3
+    # 型号写账号实际可访问的版本（已实测 2-0-lite-260215 会 404）
+    model_name: doubao-seed-2-1-lite-260915
+    api_key: "<你的 API Key>"
+  DoubaoCharacterLLM:
+    type: openai
+    base_url: https://ark.cn-beijing.volces.com/api/v3
+    model_name: doubao-seed-character-260628
+    api_key: "<你的 API Key>"
+  DeepSeekLLM:
+    type: openai
+    model_name: deepseek-v4-flash
+    url: https://api.deepseek.com
+    api_key: "<你的 API Key>"
+
+TTS:
+  EdgeTTS:
+    type: edge
+    # zh-TW-HsiaoChenNeural（晓臻，甜美）/ zh-TW-HsiaoYuNeural（晓雨，轻快）
+    voice: zh-TW-HsiaoChenNeural
+    output_dir: tmp/
+  HuoshanDoubleStreamTTS:
+    type: huoshan_double_stream
+    # 火山语音控制台 service/10007 开通"语音合成大模型"并购买"湾湾小何"音色
+    ws_url: wss://openspeech.bytedance.com/api/v3/tts/bidirection
+    appid: "<火山语音 appid>"
+    access_token: "<火山语音 access_token>"
+    resource_id: volc.service_type.10029
+    speaker: zh_female_wanwanxiaohe_moon_bigtts
+
+Intent:
+  function_call:
+    type: function_call
+    # 覆盖默认列表（列表会整体替换，所以要写全）
+    # web_search 暂不启用：秘塔 Key 还是占位符，启用后大模型可能调用它然后失败
+    functions:
+      - change_role
+      - get_weather
+      - get_news_from_newsnow
+      - play_music
+      - get_stock_quote     # 自定义：A 股/指数行情（custom-plugins/get_stock_quote.py）
+
+plugins:
+  get_weather:
+    # 和风天气：控制台 https://console.qweather.com/ ；API Host 是账号专属的
+    api_host: "<和风天气 API Host，如 xxx.qweatherapi.com>"
+    api_key: "<你的 API Key>"
+    default_location: "上海"
