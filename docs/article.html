@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小美同学 AI 圆屏</title>
+<!--
+  使用方法：
+  1. 用 Chrome/Edge 打开本文件，点顶部「一键复制正文」
+  2. 到公众号后台新建图文，在正文区 Ctrl+V 粘贴
+  3. 把每个虚线框「📷 截图位」替换成你的截图（点虚线框 → 删除 → 插入图片）
+  正文全部使用内联样式：公众号编辑器会删除 <style> 和 class，只保留 style 属性。
+-->
+</head>
+<body style="margin:0;background:#EEF0F4;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;">
+
+<!-- ======================= 作者工具栏（不会被复制） ======================= -->
+<div style="position:sticky;top:0;z-index:10;background:#1C1B2E;color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.2);">
+  <strong style="font-size:15px;">公众号文章 · 小美同学 AI 圆屏</strong>
+  <button onclick="copyArticle()" style="margin-left:auto;background:#6C5CE7;color:#fff;border:0;border-radius:8px;padding:9px 18px;font-size:14px;cursor:pointer;">一键复制正文</button>
+  <button onclick="toggleMemo()" style="background:#3A3950;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer;">截图清单</button>
+  <span id="toast" style="font-size:13px;color:#7CF0C8;"></span>
+</div>
+
+<div id="memo" style="max-width:720px;margin:16px auto 0;background:#FFFBEA;border:1px solid #F2D675;border-radius:10px;padding:14px 18px;font-size:14px;line-height:1.8;color:#5B4A00;box-sizing:border-box;">
+  <strong>作者备忘（只在本页显示，不会被复制）</strong><br>
+  打开代码：在 VS Code 里「文件 → 从文件打开工作区」选 本仓库根目录（firmware / server / tools 三部分）。<br>
+  截图建议：深色主题（Dark Modern）、字号 16、关闭小地图（View → Minimap），用 Ctrl+G 跳到行号后截图，宽度控制在 1000px 左右，手机上看得清。<br>
+  <strong>⚠ 打码：</strong>截 <code>.config.yaml</code> 时只截 prompt 那几行（第 17–25 行），不要截到 appid / token / Key；文章里不要出现服务器公网 IP 和 OTA 秘密路径。<br>
+  <ol style="margin:6px 0 0;padding-left:20px;">
+    <li>实物照片：桌面（时钟 / 音乐 / AI Chat / 设置 四个图标）</li>
+    <li>实物照片：设置应用（网络列表页 + 密码键盘页）</li>
+    <li>实物照片 / 短视频：聊天界面（聆听绿色波纹、说话青色律动、气泡）</li>
+    <li>代码：<code>brookesia_sys/sys_net.c</code> 第 189–216 行（save_credentials，与小智 NVS 格式兼容）</li>
+    <li>代码：<code>brookesia_sys/sys_net.c</code> 第 552–597 行（worker_task，单任务状态机）</li>
+    <li>代码：<code>brookesia_app_settings/esp_brookesia_app_settings.cpp</code> 第 363 行起（rebuildList）</li>
+    <li>代码：<code>pro_chat_display.cc</code> 第 251–325 行（ApplyMode，状态动画）</li>
+    <li>代码：<code>esp32-s3-touch-amoled-1.75/config.json</code>（唤醒词配置）</li>
+    <li>代码：<code>esp32-s3-touch-amoled-1.75.cc</code> 第 349–378 行（ReturnToDesktop，双系统切换）</li>
+    <li>代码：<code>custom-plugins/get_stock_quote.py</code> 第 130 行起（自定义插件）</li>
+    <li>代码：<code>aliyun-deploy/data/.config.yaml</code> 第 17–25 行（人设 prompt，注意打码）</li>
+  </ol>
+</div>
+
+<!-- ======================= 正文（复制这一块） ======================= -->
+<div style="max-width:720px;margin:16px auto 40px;background:#fff;border-radius:12px;box-shadow:0 2px 16px rgba(0,0,0,.06);">
+<section id="article" style="padding:24px 18px 32px;font-size:15px;line-height:1.8;letter-spacing:0.5px;color:#2B2B33;word-break:break-word;">
+
+<!-- 导语 -->
+<section style="margin:0 0 24px;padding:16px 16px;background:linear-gradient(135deg,#F3F0FF 0%,#E8F9FF 100%);border-radius:12px;">
+  <p style="margin:0;font-size:15px;line-height:1.85;color:#3C3A55;">
+    一块手掌大小的开发板，一块 1.75 英寸的圆形 AMOLED 屏。对它说一声<strong style="color:#6C5CE7;">「小美同学」</strong>，它会亮起一圈绿色的波纹认真听你说话，再用台湾腔甜甜地回答你——查天气、看股票、放音乐、聊天，全都可以。
+  </p>
+  <p style="margin:10px 0 0;font-size:15px;line-height:1.85;color:#3C3A55;">
+    这篇文章把它从芯片到云端完整拆开：<strong>整体架构、一次对话的完整链路、用到的技术、踩过的坑，以及源代码在哪里</strong>。
+  </p>
+</section>
+
+<!-- ============ 01 先看效果 ============ -->
+<section style="margin:32px 0 14px;display:flex;align-items:center;">
+  <span style="display:inline-block;font-size:26px;font-weight:800;color:#6C5CE7;line-height:1;margin-right:10px;font-family:Georgia,serif;">01</span>
+  <span style="font-size:19px;font-weight:700;color:#1C1B2E;">先看效果</span>
+</section>
+
+<p style="margin:0 0 14px;">设备开机进入一个类似手机的桌面，上面有四个应用：<strong>时钟、音乐、AI Chat、设置</strong>。点 AI Chat 进入 AI 助手，长按按键或者说「回到桌面」就回来。</p>
+
+<section style="margin:16px 0;padding:36px 12px;border:2px dashed #C9C3F5;border-radius:12px;background:#FAF9FF;text-align:center;color:#8A84C2;font-size:14px;">📷 截图位：桌面四个应用图标（实物照片）</section>
+
+<section style="margin:16px 0;padding:36px 12px;border:2px dashed #C9C3F5;border-radius:12px;background:#FAF9FF;text-align:center;color:#8A84C2;font-size:14px;">📷 截图位：AI 聊天界面——聆听 / 思考 / 说话三种状态（实物照片或 GIF）</section>
+
+<!-- ============ 02 硬件 ============ -->
+<section style="margin:32px 0 14px;display:flex;align-items:center;">
+  <span style="display:inline-block;font-size:26px;font-weight:800;color:#6C5CE7;line-height:1;margin-right:10px;font-family:Georgia,serif;">02</span>
+  <span style="font-size:19px;font-weight:700;color:#1C1B2E;">硬件：一块圆屏开发板</span>
+</section>
+
+<p style="margin:0 0 14px;">用的是微雪（Waveshare）的 <strong>ESP32-S3-Touch-AMOLED-1.75C</strong>。别看它小，做一个语音助手需要的东西都在板子上：</p>
+
+<table style="width:100%;border-collapse:collapse;font-size:14px;margin:0 0 16px;">
+  <tr><td style="padding:9px 10px;background:#F3F0FF;border:1px solid #E4E0FA;width:30%;font-weight:600;color:#4B3FB5;">主控</td><td style="padding:9px 10px;border:1px solid #E4E0FA;">ESP32-S3，双核 240MHz，16MB Flash + 8MB PSRAM，自带 Wi-Fi</td></tr>
+  <tr><td style="padding:9px 10px;background:#F3F0FF;border:1px solid #E4E0FA;font-weight:600;color:#4B3FB5;">屏幕</td><td style="padding:9px 10px;border:1px solid #E4E0FA;">1.75 英寸圆形 AMOLED，466×466，CO5300 驱动（QSPI）</td></tr>
+  <tr><td style="padding:9px 10px;background:#F3F0FF;border:1px solid #E4E0FA;font-weight:600;color:#4B3FB5;">触摸</td><td style="padding:9px 10px;border:1px solid #E4E0FA;">CST9217 电容触摸</td></tr>
+  <tr><td style="padding:9px 10px;background:#F3F0FF;border:1px solid #E4E0FA;font-weight:600;color:#4B3FB5;">音频</td><td style="padding:9px 10px;border:1px solid #E4E0FA;">ES7210 双麦克风采集 + ES8311 喇叭输出，支持回声消除（AEC）</td></tr>
+  <tr><td style="padding:9px 10px;background:#F3F0FF;border:1px solid #E4E0FA;font-weight:600;color:#4B3FB5;">电源</td><td style="padding:9px 10px;border:1px solid #E4E0FA;">AXP2101 电源管理，锂电池供电</td></tr>
+</table>
+
+<p style="margin:0 0 14px;">16MB Flash 我这样划分：一半放两套固件，另一半放资源（字体、表情、唤醒词模型、皮肤）：</p>
+
+<section style="margin:0 0 18px;font-size:13px;line-height:1.5;">
+  <section style="display:flex;border-radius:10px;overflow:hidden;">
+    <section style="flex:1;background:#6C5CE7;color:#fff;padding:10px 6px;text-align:center;">ota_0<br><strong>Brookesia 桌面</strong><br><span style="opacity:.8;">~4MB</span></section>
+    <section style="flex:1;background:#00B4D8;color:#fff;padding:10px 6px;text-align:center;">ota_1<br><strong>XiaoZhi AI</strong><br><span style="opacity:.8;">~4MB</span></section>
+    <section style="flex:2;background:#2B2B45;color:#fff;padding:10px 6px;text-align:center;">assets<br><strong>字体 · 表情 · 唤醒词 · 皮肤</strong><br><span style="opacity:.8;">8MB</span></section>
+  </section>
+  <p style="margin:6px 0 0;color:#8A8A99;text-align:center;">▲ 16MB Flash 分区（前面还有 NVS 等小分区，存放 Wi-Fi 和配置）</p>
+</section>
+
+<!-- ============ 03 整体架构 ============ -->
+<section style="margin:32px 0 14px;display:flex;align-items:center;">
+  <span style="display:inline-block;font-size:26px;font-weight:800;color:#6C5CE7;line-height:1;margin-right:10px;font-family:Georgia,serif;">03</span>
+  <span style="font-size:19px;font-weight:700;color:#1C1B2E;">整体架构：从圆屏到云端</span>
+</section>
+
+<p style="margin:0 0 14px;">整个系统分四层。<strong>板子只负责「听」和「说」</strong>：唤醒词在本地识别，其余的语音识别、大模型、语音合成全在云端。所以大模型的 Key 只存在服务器上，换模型也不用重新烧固件。</p>
+
+<!-- 架构图：纵向四层，适配手机宽度 -->
+<section style="margin:0 0 18px;padding:14px 12px;background:#0F0E1F;border-radius:14px;font-size:13px;line-height:1.6;color:#E8E6FF;">
+
+  <!-- 层 1 设备 -->
+  <section style="border:1px solid #6C5CE7;border-radius:10px;padding:10px;background:#1A1836;">
+    <p style="margin:0 0 8px;font-weight:700;color:#B3A8FF;font-size:14px;">① 设备端 · ESP32-S3 圆屏</p>
+    <section style="display:flex;gap:8px;">
+      <section style="flex:1;background:#2A2650;border-radius:8px;padding:8px;">
+        <strong style="color:#fff;">Brookesia 桌面</strong><br>
+        <span style="color:#C9C4F0;">时钟 · 音乐 · 设置<br>手动选 Wi-Fi</span>
+      </section>
+      <section style="flex:1;background:#123A48;border-radius:8px;padding:8px;">
+        <strong style="color:#fff;">XiaoZhi AI 固件</strong><br>
+        <span style="color:#B8E6F2;">唤醒词 · 回声消除<br>Opus 编解码 · 聊天界面</span>
+      </section>
+    </section>
+    <p style="margin:8px 0 0;color:#9C98C6;font-size:12px;">两套固件共享 NVS（Wi-Fi 与服务器地址），通过切换启动分区互相跳转</p>
+  </section>
+
+  <p style="margin:6px 0;text-align:center;color:#7CF0C8;font-size:12px;">▼ HTTP（OTA 取地址和令牌） + WebSocket（音频与消息）</p>
+
+  <!-- 层 2 接入 -->
+  <section style="border:1px solid #00B4D8;border-radius:10px;padding:10px;background:#0E2530;">
+    <p style="margin:0 0 6px;font-weight:700;color:#7FDBF0;font-size:14px;">② 接入层 · 阿里云 ECS + Nginx</p>
+    <span style="color:#C4EEF7;">OTA 接口藏在秘密路径后面 · WebSocket 转发 · Token 鉴权<br>容器端口只监听本机，公网只开一个 Nginx 端口</span>
+  </section>
+
+  <p style="margin:6px 0;text-align:center;color:#7CF0C8;font-size:12px;">▼ 反向代理</p>
+
+  <!-- 层 3 服务 -->
+  <section style="border:1px solid #FFB340;border-radius:10px;padding:10px;background:#2A2110;">
+    <p style="margin:0 0 8px;font-weight:700;color:#FFD08A;font-size:14px;">③ 服务层 · xiaozhi-esp32-server（Docker）</p>
+    <section style="display:flex;flex-wrap:wrap;gap:6px;">
+      <span style="background:#3D3016;border-radius:6px;padding:3px 8px;color:#FFE3B0;">Silero VAD 断句</span>
+      <span style="background:#3D3016;border-radius:6px;padding:3px 8px;color:#FFE3B0;">ASR 调度</span>
+      <span style="background:#3D3016;border-radius:6px;padding:3px 8px;color:#FFE3B0;">LLM 对话</span>
+      <span style="background:#3D3016;border-radius:6px;padding:3px 8px;color:#FFE3B0;">Function Call 插件</span>
+      <span style="background:#3D3016;border-radius:6px;padding:3px 8px;color:#FFE3B0;">TTS 调度</span>
+      <span style="background:#3D3016;border-radius:6px;padding:3px 8px;color:#FFE3B0;">MCP 设备工具</span>
+    </section>
+  </section>
+
+  <p style="margin:6px 0;text-align:center;color:#7CF0C8;font-size:12px;">▼ 云端 API</p>
+
+  <!-- 层 4 云能力 -->
+  <section style="border:1px solid #30D158;border-radius:10px;padding:10px;background:#0F2A18;">
+    <p style="margin:0 0 8px;font-weight:700;color:#8CEBA6;font-size:14px;">④ 云端能力</p>
+    <section style="display:flex;flex-wrap:wrap;gap:6px;">
+      <span style="background:#17402A;border-radius:6px;padding:3px 8px;color:#C9F5D6;">火山 · 流式语音识别</span>
+      <span style="background:#17402A;border-radius:6px;padding:3px 8px;color:#C9F5D6;">豆包 Seed 2.1 Lite</span>
+      <span style="background:#17402A;border-radius:6px;padding:3px 8px;color:#C9F5D6;">火山 · 双向流式 TTS（湾湾小何）</span>
+      <span style="background:#17402A;border-radius:6px;padding:3px 8px;color:#C9F5D6;">和风天气</span>
+      <span style="background:#17402A;border-radius:6px;padding:3px 8px;color:#C9F5D6;">腾讯行情</span>
+      <span style="background:#17402A;border-radius:6px;padding:3px 8px;color:#C9F5D6;">新闻 · 音乐库</span>
+    </section>
+  </section>
+</section>
+<p style="margin:-8px 0 18px;color:#8A8A99;font-size:13px;text-align:center;">▲ 系统整体架构</p>
+
+<!-- ============ 04 一次对话的链路 ============ -->
+<section style="margin:32px 0 14px;display:flex;align-items:center;">
+  <span style="display:inline-block;font-size:26px;font-weight:800;color:#6C5CE7;line-height:1;margin-right:10px;font-family:Georgia,serif;">04</span>
+  <span style="font-size:19px;font-weight:700;color:#1C1B2E;">一次对话的完整链路</span>
+</section>
+
+<p style="margin:0 0 14px;">以「小美同学，今天上海天气怎么样？」为例，看看一句话在系统里走了哪些路：</p>
+
+<!-- 时间线 -->
+<section style="margin:0 0 18px;border-left:3px solid #E4E0FA;padding-left:16px;">
+
+  <section style="margin:0 0 14px;">
+    <p style="margin:0;font-weight:700;color:#1C1B2E;"><span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;background:#6C5CE7;color:#fff;font-size:12px;margin:0 8px 0 -28px;">1</span>本地唤醒</p>
+    <p style="margin:4px 0 0;color:#55556A;font-size:14px;">麦克风一直开着，音频先经过乐鑫 AFE 做回声消除、降噪，再交给 <strong>WakeNet9</strong> 模型。模型在板子上运行，不联网，听到「小美同学」才会进入下一步。</p>
+  </section>
+
+  <section style="margin:0 0 14px;">
+    <p style="margin:0;font-weight:700;color:#1C1B2E;"><span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;background:#6C5CE7;color:#fff;font-size:12px;margin:0 8px 0 -28px;">2</span>建立连接</p>
+    <p style="margin:4px 0 0;color:#55556A;font-size:14px;">开机时，设备先访问 OTA 接口，拿到 WebSocket 地址和访问令牌；唤醒后用这个令牌建立 WebSocket 连接，并把唤醒词这段音频一起发给服务器。</p>
+  </section>
+
+  <section style="margin:0 0 14px;">
+    <p style="margin:0;font-weight:700;color:#1C1B2E;"><span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;background:#30D158;color:#fff;font-size:12px;margin:0 8px 0 -28px;">3</span>上行语音</p>
+    <p style="margin:4px 0 0;color:#55556A;font-size:14px;">你说话的声音被压缩成 <strong>Opus</strong> 格式，每 60 毫秒一帧，源源不断地发到服务器。屏幕上的光球变成<strong style="color:#1FA84A;">绿色波纹</strong>。</p>
+  </section>
+
+  <section style="margin:0 0 14px;">
+    <p style="margin:0;font-weight:700;color:#1C1B2E;"><span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;background:#FFB340;color:#fff;font-size:12px;margin:0 8px 0 -28px;">4</span>断句 + 识别</p>
+    <p style="margin:4px 0 0;color:#55556A;font-size:14px;">服务器用 Silero VAD 判断你什么时候说完，同时把音频流式交给火山引擎语音识别，得到文字「今天上海天气怎么样」，推回设备显示成右侧的紫色气泡。光球切换成<strong style="color:#D98A00;">橙色旋转</strong>，表示「思考中」。</p>
+  </section>
+
+  <section style="margin:0 0 14px;">
+    <p style="margin:0;font-weight:700;color:#1C1B2E;"><span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;background:#FFB340;color:#fff;font-size:12px;margin:0 8px 0 -28px;">5</span>大模型 + 工具调用</p>
+    <p style="margin:4px 0 0;color:#55556A;font-size:14px;">文字交给<strong>豆包 Seed 2.1 Lite</strong>（实测首个字约 0.87 秒）。模型判断需要查天气，发起 Function Call，服务器执行天气插件、拿到结果，再让模型组织成口语化的回答。</p>
+  </section>
+
+  <section style="margin:0 0 14px;">
+    <p style="margin:0;font-weight:700;color:#1C1B2E;"><span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;background:#00B4D8;color:#fff;font-size:12px;margin:0 8px 0 -28px;">6</span>流式合成</p>
+    <p style="margin:4px 0 0;color:#55556A;font-size:14px;">模型一边输出文字，服务器一边送进火山<strong>双向流式 TTS</strong>（音色「湾湾小何」），不用等整段话写完就开始合成，首句延迟很低。</p>
+  </section>
+
+  <section style="margin:0;">
+    <p style="margin:0;font-weight:700;color:#1C1B2E;"><span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;background:#00B4D8;color:#fff;font-size:12px;margin:0 8px 0 -28px;">7</span>下行播放 + 界面</p>
+    <p style="margin:4px 0 0;color:#55556A;font-size:14px;">合成的语音同样以 Opus 帧推回设备，解码后从喇叭播放；每一句的文字、以及大模型给出的情绪（开心、思考…）也通过 WebSocket 推回来，屏幕上显示成左侧气泡和对应表情。光球变成<strong style="color:#0891B2;">青色律动</strong>。说完自动回到聆听，可以接着问。</p>
+  </section>
+</section>
+
+<section style="margin:0 0 18px;padding:12px 14px;background:#F6F6FA;border-radius:10px;font-size:14px;color:#55556A;">
+  <strong style="color:#1C1B2E;">小结：</strong>链路里只有「唤醒」在本地，其余全部走云端；每一环都是<strong>流式</strong>的——边说边传、边识别边想、边想边合成、边合成边播放。这就是它反应快的原因。
+</section>
+
+<!-- ============ 05 我做了哪些改造 ============ -->
+<section style="margin:32px 0 14px;display:flex;align-items:center;">
+  <span style="display:inline-block;font-size:26px;font-weight:800;color:#6C5CE7;line-height:1;margin-right:10px;font-family:Georgia,serif;">05</span>
+  <span style="font-size:19px;font-weight:700;color:#1C1B2E;">我在开源项目上做了什么</span>
+</section>
+
+<p style="margin:0 0 14px;">站在三个优秀开源项目的肩膀上：设备端 AI 用<strong>小智 xiaozhi-esp32</strong>，桌面用乐鑫的 <strong>ESP-Brookesia</strong>，服务端用 <strong>xiaozhi-esp32-server</strong>。在这之上，我主要做了下面几件事。</p>
+
+<!-- 5.1 -->
+<p style="margin:22px 0 8px;font-size:16px;font-weight:700;color:#1C1B2E;border-left:4px solid #6C5CE7;padding-left:10px;line-height:1.4;">双系统：一块板子两套固件</p>
+<p style="margin:0 0 12px;">桌面固件和小智固件各占一个 OTA 分区。在桌面点「AI Chat」，程序把启动分区切到小智并重启；在小智里长按按键，或者直接说「回到桌面」（注册成了 MCP 工具，大模型可以调用），再切回来。</p>
+<p style="margin:0 0 12px;">这里有个坑：写启动分区时 Flash 缓存会暂时关闭，而界面线程的栈放在 PSRAM 上，直接调用会触发断言导致死机。解决办法是<strong>专门开一个任务去写</strong>，因为 FreeRTOS 新建任务的栈默认在内部 RAM。</p>
+<section style="margin:16px 0;padding:36px 12px;border:2px dashed #C9C3F5;border-radius:12px;background:#FAF9FF;text-align:center;color:#8A84C2;font-size:14px;">📷 截图位：esp32-s3-touch-amoled-1.75.cc · ReturnToDesktop()</section>
+
+<!-- 5.2 -->
+<p style="margin:22px 0 8px;font-size:16px;font-weight:700;color:#1C1B2E;border-left:4px solid #6C5CE7;padding-left:10px;line-height:1.4;">设置应用：在屏幕上手动选 Wi-Fi</p>
+<p style="margin:0 0 12px;">原来只能用手机连板子的热点、在网页里配网，换个地方就很麻烦。现在桌面上多了一个「设置」应用：扫描附近网络（按信号排序，显示加密锁和信号格），点一下输入密码就能连，也能忘记已保存的网络。</p>
+<section style="margin:16px 0;padding:36px 12px;border:2px dashed #C9C3F5;border-radius:12px;background:#FAF9FF;text-align:center;color:#8A84C2;font-size:14px;">📷 截图位：设置应用——网络列表 + 密码键盘（实物照片）</section>
+<p style="margin:0 0 12px;">关键设计有三点：</p>
+<section style="margin:0 0 14px;padding:0 0 0 4px;">
+  <p style="margin:0 0 8px;">✅ <strong>和小智共用一份 Wi-Fi 配置。</strong>保存格式和小智的 SsidManager 完全一致（ssid / password / channel 三组键，最多 10 个），切到 AI 以后直接用同一个网络，继续连阿里云后端。</p>
+  <p style="margin:0 0 8px;">✅ <strong>连上了才保存。</strong>输错密码不会弄乱已保存的列表；同一个配置区里还存着服务器地址，程序只改 Wi-Fi 相关的几个键，保证服务器地址不会丢。</p>
+  <p style="margin:0;">✅ <strong>单任务状态机。</strong>Wi-Fi 事件和界面操作都放进同一个队列，由一个后台任务按顺序处理：没有多线程抢数据的问题，写 Flash 也一定发生在安全的内部 RAM 栈上。</p>
+</section>
+<section style="margin:16px 0;padding:36px 12px;border:2px dashed #C9C3F5;border-radius:12px;background:#FAF9FF;text-align:center;color:#8A84C2;font-size:14px;">📷 截图位：sys_net.c · save_credentials()（兼容小智的 NVS 格式）</section>
+<section style="margin:16px 0;padding:36px 12px;border:2px dashed #C9C3F5;border-radius:12px;background:#FAF9FF;text-align:center;color:#8A84C2;font-size:14px;">📷 截图位：sys_net.c · worker_task()（单任务状态机）</section>
+
+<!-- 5.3 -->
+<p style="margin:22px 0 8px;font-size:16px;font-weight:700;color:#1C1B2E;border-left:4px solid #6C5CE7;padding-left:10px;line-height:1.4;">专业聊天界面：为圆屏重新设计</p>
+<p style="margin:0 0 12px;">小智原来的界面是一个表情加一行字幕，放在圆屏上显得简单。我参考智能手表，重新做了一套深色玻璃风格的界面：顶部状态图标、中间半透明的状态胶囊、会随状态变化的<strong>光球</strong>，以及可以上下滑动的对话气泡。</p>
+<table style="width:100%;border-collapse:collapse;font-size:14px;margin:0 0 14px;">
+  <tr style="background:#1C1B2E;color:#fff;"><td style="padding:8px 10px;">状态</td><td style="padding:8px 10px;">光球动画</td></tr>
+  <tr><td style="padding:8px 10px;border-bottom:1px solid #EEE;">待机</td><td style="padding:8px 10px;border-bottom:1px solid #EEE;"><span style="color:#8B6CF6;">●</span> 紫色慢呼吸（胶囊里显示时钟）</td></tr>
+  <tr><td style="padding:8px 10px;border-bottom:1px solid #EEE;">连接中</td><td style="padding:8px 10px;border-bottom:1px solid #EEE;"><span style="color:#0A84FF;">●</span> 蓝色旋转弧</td></tr>
+  <tr><td style="padding:8px 10px;border-bottom:1px solid #EEE;">聆听</td><td style="padding:8px 10px;border-bottom:1px solid #EEE;"><span style="color:#30D158;">●</span> 绿色双波纹</td></tr>
+  <tr><td style="padding:8px 10px;border-bottom:1px solid #EEE;">思考</td><td style="padding:8px 10px;border-bottom:1px solid #EEE;"><span style="color:#FFB340;">●</span> 橙色快速旋转</td></tr>
+  <tr><td style="padding:8px 10px;">说话</td><td style="padding:8px 10px;"><span style="color:#00B4D8;">●</span> 青色律动</td></tr>
+</table>
+<p style="margin:0 0 12px;">圆屏的难点在于四个角都是看不见的：每个控件的位置都要按「距离圆心 d 处，可用半宽 = √(233² − d²)」来算，保证文字不会被切掉。另外，所有改动都放在板级文件里，小智的公共代码一行没改，以后跟进上游版本更新也很方便。</p>
+<section style="margin:16px 0;padding:36px 12px;border:2px dashed #C9C3F5;border-radius:12px;background:#FAF9FF;text-align:center;color:#8A84C2;font-size:14px;">📷 截图位：pro_chat_display.cc · ApplyMode()（状态 → 动画）</section>
+
+<!-- 5.4 -->
+<p style="margin:22px 0 8px;font-size:16px;font-weight:700;color:#1C1B2E;border-left:4px solid #6C5CE7;padding-left:10px;line-height:1.4;">唤醒词：从「你好小智」到「小美同学」</p>
+<p style="margin:0 0 12px;">我最初想要「小美小美」，但乐鑫的唤醒词模型库里没有现成的模型。比较了三种方案后，选了官方训练好的「小美同学」：</p>
+<table style="width:100%;border-collapse:collapse;font-size:13px;margin:0 0 14px;">
+  <tr style="background:#F3F0FF;color:#4B3FB5;font-weight:600;"><td style="padding:8px;border:1px solid #E4E0FA;">方案</td><td style="padding:8px;border:1px solid #E4E0FA;">效果</td><td style="padding:8px;border:1px solid #E4E0FA;">代价</td></tr>
+  <tr><td style="padding:8px;border:1px solid #E4E0FA;"><strong>WakeNet9「小美同学」✔</strong></td><td style="padding:8px;border:1px solid #E4E0FA;">官方模型，准确率高、误唤醒少</td><td style="padding:8px;border:1px solid #E4E0FA;">只改两行配置</td></tr>
+  <tr><td style="padding:8px;border:1px solid #E4E0FA;">MultiNet 自定义「小美小美」</td><td style="padding:8px;border:1px solid #E4E0FA;">识别率偏低、误唤醒偏多</td><td style="padding:8px;border:1px solid #E4E0FA;">多占几 MB 模型空间和内存</td></tr>
+  <tr><td style="padding:8px;border:1px solid #E4E0FA;">找乐鑫定制训练</td><td style="padding:8px;border:1px solid #E4E0FA;">最好</td><td style="padding:8px;border:1px solid #E4E0FA;">收费，要等几周</td></tr>
+</table>
+<p style="margin:0 0 10px;">改动就是板级配置里的两行：</p>
+<pre style="margin:0 0 14px;padding:12px 14px;background:#1E1E2E;border-radius:10px;color:#CDD6F4;font-size:13px;line-height:1.6;font-family:Consolas,Menlo,monospace;white-space:pre-wrap;word-break:break-all;"><span style="color:#6C7086;">// main/boards/waveshare/esp32-s3-touch-amoled-1.75/config.json</span>
+<span style="color:#A6E3A1;">"CONFIG_SR_WN_WN9_NIHAOXIAOZHI_TTS=n"</span>,
+<span style="color:#A6E3A1;">"CONFIG_SR_WN_WN9_XIAOMEITONGXUE_TTS=y"</span></pre>
+<p style="margin:0 0 12px;">编译时，唤醒词模型会被打包进 8MB 的资源分区，再叠加上我做的星云 / 极光背景皮肤，一起烧进去。服务器那边把 AI 的人设名字也从「小智」改成了「小美」，这样叫的名字和它的自称就对上了。</p>
+
+<!-- 5.5 -->
+<p style="margin:22px 0 8px;font-size:16px;font-weight:700;color:#1C1B2E;border-left:4px solid #6C5CE7;padding-left:10px;line-height:1.4;">云端：2 核 3.6G 的小服务器也能跑</p>
+<p style="margin:0 0 12px;">服务端部署在一台阿里云经济型 ECS 上（CentOS 7.9，2 核，3.6GB 内存，上面还跑着别的服务）。本地语音识别 FunASR 实测要占 3.1GB 内存，根本装不下，所以改用<strong>云端流式识别</strong>，整个容器只占约 175MB。</p>
+<p style="margin:0 0 12px;">安全上做了三件事：</p>
+<section style="margin:0 0 14px;">
+  <p style="margin:0 0 6px;">🔒 服务端的 OTA 接口会把访问令牌发给任何来访者，所以用 Nginx 把它<strong>藏在一个随机的秘密路径后面</strong>；</p>
+  <p style="margin:0 0 6px;">🔒 容器端口只监听本机，公网只开放一个 Nginx 端口；</p>
+  <p style="margin:0;">🔒 WebSocket 开启 Token 鉴权，没有令牌或令牌伪造都会被拒绝（部署后逐项实测过）。</p>
+</section>
+<section style="margin:16px 0;padding:36px 12px;border:2px dashed #C9C3F5;border-radius:12px;background:#FAF9FF;text-align:center;color:#8A84C2;font-size:14px;">📷 截图位：.config.yaml · 人设 prompt（记得给 Key 打码）</section>
+
+<!-- 5.6 -->
+<p style="margin:22px 0 8px;font-size:16px;font-weight:700;color:#1C1B2E;border-left:4px solid #6C5CE7;padding-left:10px;line-height:1.4;">自定义插件：让它会看股票</p>
+<p style="margin:0 0 12px;">服务端的插件机制很友好：写一个 Python 函数，加上 <code style="background:#F3F0FF;color:#6C5CE7;padding:1px 5px;border-radius:4px;font-size:13px;">@register_function</code> 装饰器描述它能做什么，大模型就会在需要的时候自己调用。我写了一个查 A 股和指数行情的插件，数据来自腾讯财经的免费接口，不需要 Key。问一句「上证指数今天怎么样」，它就能说出点位和涨跌幅。</p>
+<section style="margin:16px 0;padding:36px 12px;border:2px dashed #C9C3F5;border-radius:12px;background:#FAF9FF;text-align:center;color:#8A84C2;font-size:14px;">📷 截图位：get_stock_quote.py · @register_function</section>
+
+<!-- ============ 06 技术栈 ============ -->
+<section style="margin:32px 0 14px;display:flex;align-items:center;">
+  <span style="display:inline-block;font-size:26px;font-weight:800;color:#6C5CE7;line-height:1;margin-right:10px;font-family:Georgia,serif;">06</span>
+  <span style="font-size:19px;font-weight:700;color:#1C1B2E;">用到的技术一览</span>
+</section>
+
+<table style="width:100%;border-collapse:collapse;font-size:13.5px;margin:0 0 16px;">
+  <tr style="background:#1C1B2E;color:#fff;"><td style="padding:8px 10px;width:26%;">层级</td><td style="padding:8px 10px;">技术</td></tr>
+  <tr><td style="padding:9px 10px;border-bottom:1px solid #EEE;font-weight:600;color:#4B3FB5;">开发框架</td><td style="padding:9px 10px;border-bottom:1px solid #EEE;">ESP-IDF v6.1 · FreeRTOS · C / C++</td></tr>
+  <tr style="background:#FAFAFD;"><td style="padding:9px 10px;border-bottom:1px solid #EEE;font-weight:600;color:#4B3FB5;">图形界面</td><td style="padding:9px 10px;border-bottom:1px solid #EEE;">LVGL 9.5 · ESP-Brookesia 桌面框架</td></tr>
+  <tr><td style="padding:9px 10px;border-bottom:1px solid #EEE;font-weight:600;color:#4B3FB5;">语音前端</td><td style="padding:9px 10px;border-bottom:1px solid #EEE;">ESP-SR：AFE（回声消除 / 降噪）+ WakeNet9 唤醒</td></tr>
+  <tr style="background:#FAFAFD;"><td style="padding:9px 10px;border-bottom:1px solid #EEE;font-weight:600;color:#4B3FB5;">传输协议</td><td style="padding:9px 10px;border-bottom:1px solid #EEE;">HTTP（OTA）· WebSocket · Opus 音频 · MCP 设备工具</td></tr>
+  <tr><td style="padding:9px 10px;border-bottom:1px solid #EEE;font-weight:600;color:#4B3FB5;">服务端</td><td style="padding:9px 10px;border-bottom:1px solid #EEE;">xiaozhi-esp32-server（Python）· Docker Compose · Nginx</td></tr>
+  <tr style="background:#FAFAFD;"><td style="padding:9px 10px;border-bottom:1px solid #EEE;font-weight:600;color:#4B3FB5;">AI 能力</td><td style="padding:9px 10px;border-bottom:1px solid #EEE;">Silero VAD · 火山流式 ASR · 豆包 Seed 2.1 Lite · 火山双向流式 TTS</td></tr>
+  <tr><td style="padding:9px 10px;font-weight:600;color:#4B3FB5;">工具插件</td><td style="padding:9px 10px;">Function Call：天气、新闻、音乐、股票行情（自研）</td></tr>
+</table>
+
+<!-- ============ 07 踩坑 ============ -->
+<section style="margin:32px 0 14px;display:flex;align-items:center;">
+  <span style="display:inline-block;font-size:26px;font-weight:800;color:#6C5CE7;line-height:1;margin-right:10px;font-family:Georgia,serif;">07</span>
+  <span style="font-size:19px;font-weight:700;color:#1C1B2E;">踩过的坑</span>
+</section>
+
+<section style="margin:0 0 10px;padding:12px 14px;background:#FFF5F5;border-left:4px solid #FF6B6B;border-radius:0 10px 10px 0;">
+  <p style="margin:0;font-weight:700;color:#C92A2A;font-size:14.5px;">PSRAM 栈 + 写 Flash = 死机</p>
+  <p style="margin:4px 0 0;font-size:14px;color:#55556A;">界面线程的栈在 PSRAM 上，而写 Flash 时缓存会关闭。凡是读写 NVS、切换启动分区的操作，都要放进单独创建的任务里执行。</p>
+</section>
+<section style="margin:0 0 10px;padding:12px 14px;background:#FFF5F5;border-left:4px solid #FF6B6B;border-radius:0 10px 10px 0;">
+  <p style="margin:0;font-weight:700;color:#C92A2A;font-size:14.5px;">一句话被切成两半</p>
+  <p style="margin:4px 0 0;font-size:14px;color:#55556A;">「帮我把音量调到 60，然后讲个笑话」只识别出了前半句。原因是句尾静音判定默认 200 毫秒太短，调到 500 毫秒就能完整保留，只多等约 0.3 秒。</p>
+</section>
+<section style="margin:0 0 10px;padding:12px 14px;background:#FFF5F5;border-left:4px solid #FF6B6B;border-radius:0 10px 10px 0;">
+  <p style="margin:0;font-weight:700;color:#C92A2A;font-size:14.5px;">模型 404</p>
+  <p style="margin:4px 0 0;font-size:14px;color:#55556A;">豆包的 API 一直返回 404，最后发现是账号还没在控制台开通对应模型，而且有的版本号本身就访问不到。建议逐个版本实测。</p>
+</section>
+<section style="margin:0 0 18px;padding:12px 14px;background:#FFF5F5;border-left:4px solid #FF6B6B;border-radius:0 10px 10px 0;">
+  <p style="margin:0;font-weight:700;color:#C92A2A;font-size:14.5px;">共享配置区里的「邻居」</p>
+  <p style="margin:4px 0 0;font-size:14px;color:#55556A;">Wi-Fi 列表和服务器地址存在同一个 NVS 命名空间里。如果图省事整个清空，服务器地址会跟着丢，设备就再也连不上后端了。所以只能逐个键改写。</p>
+</section>
+
+<!-- ============ 08 源码 ============ -->
+<section style="margin:32px 0 14px;display:flex;align-items:center;">
+  <span style="display:inline-block;font-size:26px;font-weight:800;color:#6C5CE7;line-height:1;margin-right:10px;font-family:Georgia,serif;">08</span>
+  <span style="font-size:19px;font-weight:700;color:#1C1B2E;">源代码在哪里</span>
+</section>
+
+<p style="margin:0 0 10px;">整个项目由三个工程组成，下面标 ★ 的是我新增或改动的部分：</p>
+<pre style="margin:0 0 16px;padding:12px 12px;background:#1E1E2E;border-radius:10px;color:#CDD6F4;font-size:12px;line-height:1.7;font-family:Consolas,Menlo,monospace;white-space:pre;overflow-x:auto;"><span style="color:#89B4FA;">03_esp-brookesia/</span> <span style="color:#6C7086;">桌面 ota_0</span>
+└ components/
+  ├ brookesia_sys/     <span style="color:#F9E2AF;">★ 网络·时间</span>
+  ├ brookesia_app_settings/
+  │                    <span style="color:#F9E2AF;">★ 设置应用</span>
+  ├ brookesia_app_clock/ <span style="color:#F9E2AF;">★ 时钟</span>
+  ├ brookesia_app_music/ <span style="color:#F9E2AF;">★ 音乐</span>
+  └ brookesia_app_xiaozhi/
+                       <span style="color:#F9E2AF;">★ 进入 AI</span>
+
+<span style="color:#89B4FA;">xiaozhi-esp32/</span> <span style="color:#6C7086;">AI 固件 ota_1</span>
+└ main/boards/waveshare/
+  └ esp32-s3-touch-amoled-1.75/
+    ├ pro_chat_display.cc
+    │                  <span style="color:#F9E2AF;">★ 聊天界面</span>
+    ├ esp32-s3-...-1.75.cc
+    │                  <span style="color:#F9E2AF;">★ 双系统</span>
+    └ config.json      <span style="color:#F9E2AF;">★ 唤醒词</span>
+
+<span style="color:#89B4FA;">server/</span> <span style="color:#6C7086;">云端</span>
+├ aliyun-deploy/     <span style="color:#F9E2AF;">★ 部署脚本</span>
+└ custom-plugins/    <span style="color:#F9E2AF;">★ 股票插件</span></pre>
+
+<p style="margin:0 0 8px;">用到的开源项目（感谢作者们）：</p>
+<section style="margin:0 0 18px;padding:12px 14px;background:#F6F6FA;border-radius:10px;font-size:13.5px;line-height:1.9;color:#55556A;">
+  • 小智 AI 固件：github.com/78/xiaozhi-esp32<br>
+  • 乐鑫 Brookesia：github.com/espressif/esp-brookesia<br>
+  • 小智服务端：github.com/xinnan-tech/xiaozhi-esp32-server<br>
+  • 乐鑫语音识别：github.com/espressif/esp-sr<br>
+  • 图形库：github.com/lvgl/lvgl
+</section>
+
+<!-- ============ 结语 ============ -->
+<section style="margin:32px 0 14px;display:flex;align-items:center;">
+  <span style="display:inline-block;font-size:26px;font-weight:800;color:#6C5CE7;line-height:1;margin-right:10px;font-family:Georgia,serif;">09</span>
+  <span style="font-size:19px;font-weight:700;color:#1C1B2E;">写在最后</span>
+</section>
+
+<p style="margin:0 0 14px;">回头看，最有意思的不是某一段代码，而是把「芯片 → 固件 → 网络 → 云端 → 大模型」这一整条链路亲手打通的过程。每一层都有现成的轮子，真正的功夫在于<strong>让它们严丝合缝地接在一起</strong>：两套固件怎么共享配置，圆屏上的每个像素怎么摆，小服务器怎么省内存，令牌怎么不被别人拿走。</p>
+<p style="margin:0 0 20px;">如果你也有一块 ESP32-S3 开发板，不妨从「让它说出第一句话」开始。有问题欢迎在评论区交流 👇</p>
+
+<section style="margin:24px 0 0;padding:16px;text-align:center;background:linear-gradient(135deg,#6C5CE7 0%,#00B4D8 100%);border-radius:12px;color:#fff;">
+  <p style="margin:0;font-size:16px;font-weight:700;letter-spacing:1px;">「小美同学」</p>
+  <p style="margin:6px 0 0;font-size:13px;opacity:.9;">ESP32-S3 · LVGL · 豆包大模型 · 阿里云</p>
+</section>
+
+</section>
+</div>
+
+<script>
+function copyArticle() {
+  var el = document.getElementById('article');
+  var range = document.createRange();
+  range.selectNode(el);
+  var sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  var ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) {}
+  sel.removeAllRanges();
+  toast(ok ? '已复制！去公众号编辑器正文里 Ctrl+V' : '复制失败：请手动选中正文后 Ctrl+C');
+}
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  clearTimeout(window.__t);
+  window.__t = setTimeout(function () { t.textContent = ''; }, 4000);
+}
+function toggleMemo() {
+  var m = document.getElementById('memo');
+  m.style.display = (m.style.display === 'none') ? 'block' : 'none';
+}
+</script>
+</body>
+</html>

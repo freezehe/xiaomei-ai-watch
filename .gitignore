@@ -1,0 +1,27 @@
+# ESP-IDF build output
+build/
+managed_components/
+sdkconfig
+sdkconfig.old
+*.log
+
+# Upstream component downloaded by firmware/launcher/fetch_brookesia_core.ps1
+firmware/launcher/components/brookesia_core/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+tools/xiaozhi-skin/out/
+
+# Secrets: never commit real server configs
+server/aliyun-deploy/data/.config.yaml
+.env
+*.pem
+*.key
+
+# Editors
+.vscode/
+.idea/
+.clangd
+*.bak

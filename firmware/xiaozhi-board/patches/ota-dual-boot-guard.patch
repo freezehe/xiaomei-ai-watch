@@ -1,0 +1,50 @@
+diff --git a/main/ota.cc b/main/ota.cc
+index 07d5116..0862cf4 100644
+--- a/main/ota.cc
++++ b/main/ota.cc
+@@ -27,6 +27,22 @@
+ #define TAG "Ota"
+ 
+ 
++// Dual-boot guard: the other OTA slot may hold a different firmware (e.g. a launcher).
++// Only overwrite it if it is empty/invalid or holds this same project.
++static bool IsUpdatePartitionOverwritable(const esp_partition_t* partition) {
++    esp_app_desc_t desc = {};
++    if (esp_ota_get_partition_description(partition, &desc) != ESP_OK) {
++        return true;
++    }
++    if (strcmp(desc.project_name, esp_app_get_description()->project_name) == 0) {
++        return true;
++    }
++    ESP_LOGW(TAG, "Partition %s holds another firmware '%s', refusing to overwrite it",
++             partition->label, desc.project_name);
++    return false;
++}
++
++
+ Ota::Ota() {
+ #ifdef ESP_EFUSE_BLOCK_USR_DATA
+     // Read Serial Number from efuse user_data
+@@ -240,6 +256,12 @@ NetworkResult<> Ota::CheckVersion() {
+             if (cJSON_IsNumber(force) && force->valueint == 1) {
+                 has_new_version_ = true;
+             }
++            // Skip the upgrade (instead of failing it on every boot) in a dual-boot layout
++            auto update_partition = esp_ota_get_next_update_partition(NULL);
++            if (has_new_version_ && update_partition != NULL &&
++                !IsUpdatePartitionOverwritable(update_partition)) {
++                has_new_version_ = false;
++            }
+         }
+     } else {
+         ESP_LOGW(TAG, "No firmware section found!");
+@@ -277,6 +299,9 @@ bool Ota::Upgrade(const std::string& firmware_url, std::function<void(int progre
+         ESP_LOGE(TAG, "Failed to get update partition");
+         return false;
+     }
++    if (!IsUpdatePartitionOverwritable(update_partition)) {
++        return false;
++    }
+ 
+     ESP_LOGI(TAG, "Writing to partition %s at offset 0x%lx", update_partition->label, update_partition->address);
+     bool image_header_checked = false;
